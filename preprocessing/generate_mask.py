@@ -3,19 +3,29 @@ import cv2
 import numpy as np
 import random
 import argparse
+from tqdm import tqdm
 
 parser = argparse.ArgumentParser(description="data preproc")
 
 parser.add_argument("--mask_dir", type=str, default='./masks/')
-parser.add_argument("--face_dir", type=str, default='../raw_datas/data1/')
+parser.add_argument("--face_dir", type=str, default='../raw_datas/data3_1/')
 parser.add_argument("--save_dir", type=str, default='./output/')
 parser.add_argument("--repeat", type=int, default=1)
+<<<<<<< HEAD
+parser.add_argument("--min_density", type=float, default=0.2)
+parser.add_argument("--max_density", type=float, default=0.4)
+parser.add_argument("--mask_scale_ratio", type=float, default=1.0)
+parser.add_argument("--mask_darker_ratio", type=float, default=0.1)
+parser.add_argument("--mask_tsp", type=float, default=0.4)
+parser.add_argument("--face_scale_ratio", type=float, default=0.2)
+=======
 parser.add_argument("--min_density", type=float, default=0.3)
 parser.add_argument("--max_density", type=float, default=0.5)
 parser.add_argument("--mask_scale_ratio", type=float, default=0.4)
 parser.add_argument("--mask_darker_ratio", type=float, default=0.8)
 parser.add_argument("--mask_tsp", type=float, default=0.4)
 parser.add_argument("--face_scale_ratio", type=float, default=1)
+>>>>>>> d12c1c0d77d7eca2af8b625226c94ad6bb662492
 
 args = parser.parse_args()
 print(args)
@@ -63,6 +73,8 @@ def apply_transform(mask):
 def get_random_mask(w, h):
 
     mask_w, mask_h = 0, 0
+    max_repeat = 10
+    rep = 0
     while(mask_w <= w or mask_h <= h):
         mask_id = random.randint(1,12)
         mask_path = os.path.join(mask_root, 'mask_{}.png'.format(mask_id))
@@ -77,12 +89,16 @@ def get_random_mask(w, h):
 
     # print(mask_id)
     now_density = 0.0
+    rep = 0
     while(now_density < min_density or now_density > max_density):
+        rep += 1
+        if rep > max_repeat:
+            return None
         posx = random.randint(0, mask_w - w - 1)
         posy = random.randint(0, mask_h - h - 1)
         mask_selected = mask[posx:posx+w, posy:posy+h, :]
         mask_bin = np.sum(mask_selected, axis=2)
-        now_density = np.sum(mask_bin > 0) / (mask_bin.shape[0] * mask_bin.shape[1])
+        now_density = float(np.sum(mask_bin > 0)) / (mask_bin.shape[0] * mask_bin.shape[1])
     return mask_selected
 
 
@@ -93,14 +109,31 @@ def fuse_mask(img, mask):
     return img_
 
 
+def test():
+    face_path = './example_2.jpg'
+    face = cv2.imread(face_path)
+    face = scale_image(face, face_scale_ratio)
+    w, h, _ = face.shape
+
+    mask = get_random_mask(w, h)
+    fused_face = fuse_mask(face, mask)
+    cv2.imwrite('example_mask.jpg', fused_face)
+
+
 if __name__ == '__main__':
+
+    # test()
 
     faces_path = os.listdir(args.face_dir)
     faces_path = [os.path.join(args.face_dir, x) for x in faces_path]
 
-    for path in faces_path:
+    ipt = 0
+    for path in tqdm(faces_path):
+        ipt += 1
+        if ipt > 100:
+            break
         face = cv2.imread(path)
-        print(path)
+        # print(path)
         if face is None:
             continue
         face = scale_image(face, face_scale_ratio)
@@ -108,8 +141,14 @@ if __name__ == '__main__':
 
         for i in range(args.repeat):
             mask = get_random_mask(w, h)
+            if mask is None:
+                break
             fused_face = fuse_mask(face, mask)
             save_path = path.split('/')[-1]
+<<<<<<< HEAD
+            save_path = '{}_{}.jpg'.format(save_path.split('.')[0], i)
+=======
+>>>>>>> d12c1c0d77d7eca2af8b625226c94ad6bb662492
             save_path = os.path.join(args.save_dir, save_path)
             cv2.imwrite(save_path, fused_face)
     print('done.')
